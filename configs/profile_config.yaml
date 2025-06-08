@@ -1,0 +1,291 @@
+# Profile-Based Multi-Year Simulation Configuration
+
+simulation:
+  # Leave empty or set to null to use full length of profiles
+  time_periods: null  # Will run for entire profile length
+  # time_periods: 17520  # Or specify exact hours (e.g., 2 years = 2 * 365 * 24)
+
+# Profile definitions - specify which CSV files to load
+profiles:
+  # Load profile with hourly demand for each consumer
+  - name: "load_profile"
+    file: "load_profile.csv"
+    column_mapping: null  # Use original column names
+    
+  # Wind capacity factors
+  - name: "wind_cf"
+    file: "wind_cf.csv"
+    column_mapping: null
+    
+  # Solar capacity factors  
+  - name: "solar_cf"
+    file: "solar_cf.csv"
+    column_mapping: null
+    
+  # Fuel prices over time
+  - name: "fuel_prices"
+    file: "fuel_prices.csv"
+    column_mapping: null
+    
+  # Hydro availability (seasonal)
+  - name: "hydro_availability"
+    file: "hydro_availability.csv"
+    column_mapping: null
+
+# Utilities configuration
+utilities:
+  # Large incumbent utility
+  - id: "MegaPower_Corp"
+    strategy: "strategic"
+    markup: 0.15
+    enable_contracts: true
+    generators:
+      # Coal units - marginal cost will be updated by fuel price profile
+      - unit_id: "MP_Coal_1"
+        unit_type: "coal"
+        capacity: 600
+        marginal_cost: 28  # Initial value, updated by fuel prices
+        min_output: 300
+        ramp_rate: 60
+        startup_cost: 15000
+        min_downtime: 6
+        min_uptime: 6
+        efficiency: 0.38  # 38% efficiency = 2.63 MMBtu/MWh heat rate
+        fuel_type: "coal"
+        location: "central"
+        availability: 0.95
+        is_online: false
+        hours_online: 0
+        hours_offline: 0
+        current_output: 0.0
+        
+      - unit_id: "MP_Coal_2"
+        unit_type: "coal"
+        capacity: 500
+        marginal_cost: 30
+        min_output: 250
+        ramp_rate: 50
+        startup_cost: 12000
+        min_downtime: 6
+        min_uptime: 6
+        efficiency: 0.36
+        fuel_type: "coal"
+        location: "central"
+        availability: 0.95
+        is_online: false
+        hours_online: 0
+        hours_offline: 0
+        current_output: 0.0
+        
+      # Gas units
+      - unit_id: "MP_CCGT_1"
+        unit_type: "gas"
+        capacity: 400
+        marginal_cost: 42  # Updated by gas prices
+        min_output: 150
+        ramp_rate: 200
+        startup_cost: 8000
+        min_downtime: 2
+        min_uptime: 2
+        efficiency: 0.58  # 58% efficiency = 1.72 MMBtu/MWh
+        fuel_type: "natural_gas"
+        location: "north"
+        availability: 0.98
+        is_online: false
+        hours_online: 0
+        hours_offline: 0
+        current_output: 0.0
+        
+      - unit_id: "MP_Peaker_1"
+        unit_type: "gas"
+        capacity: 200
+        marginal_cost: 75
+        min_output: 40
+        ramp_rate: 200
+        startup_cost: 3000
+        min_downtime: 1
+        min_uptime: 1
+        efficiency: 0.35  # Peaker efficiency
+        fuel_type: "natural_gas"
+        location: "central"
+        availability: 0.96
+        is_online: false
+        hours_online: 0
+        hours_offline: 0
+        current_output: 0.0
+        
+      # Wind - availability from profile
+      - unit_id: "MP_Wind_1"
+        unit_type: "wind"
+        capacity: 300
+        marginal_cost: 0
+        min_output: 0
+        ramp_rate: 300
+        startup_cost: 0
+        min_downtime: 0
+        min_uptime: 0
+        efficiency: 1.0
+        fuel_type: "wind"
+        location: "west"
+        availability: 0.33  # Will be overridden by profile
+        is_online: false
+        hours_online: 0
+        hours_offline: 0
+        current_output: 0.0
+
+  # Green energy utility
+  - id: "GreenGen_Energy"
+    strategy: "optimal"
+    forecast_horizon: 24
+    risk_aversion: 0.3
+    enable_contracts: false
+    generators:
+      - unit_id: "GG_CCGT_1"
+        unit_type: "gas"
+        capacity: 350
+        marginal_cost: 40
+        min_output: 100
+        ramp_rate: 175
+        startup_cost: 7000
+        min_downtime: 2
+        min_uptime: 2
+        efficiency: 0.60
+        fuel_type: "natural_gas"
+        location: "north"
+        availability: 0.98
+        is_online: false
+        hours_online: 0
+        hours_offline: 0
+        current_output: 0.0
+        
+      - unit_id: "GG_Wind_1"
+        unit_type: "wind"
+        capacity: 400
+        marginal_cost: 0
+        min_output: 0
+        ramp_rate: 400
+        startup_cost: 0
+        min_downtime: 0
+        min_uptime: 0
+        efficiency: 1.0
+        fuel_type: "wind"
+        location: "north"
+        availability: 0.35  # Overridden by profile
+        is_online: false
+        hours_online: 0
+        hours_offline: 0
+        current_output: 0.0
+        
+      - unit_id: "GG_Solar_1"
+        unit_type: "solar"
+        capacity: 300
+        marginal_cost: 0
+        min_output: 0
+        ramp_rate: 300
+        startup_cost: 0
+        min_downtime: 0
+        min_uptime: 0
+        efficiency: 1.0
+        fuel_type: "solar"
+        location: "south"
+        availability: 0.25  # Overridden by profile
+        is_online: false
+        hours_online: 0
+        hours_offline: 0
+        current_output: 0.0
+
+  # Municipal utility
+  - id: "City_Power"
+    strategy: "marginal_cost"
+    enable_contracts: true
+    generators:
+      - unit_id: "CP_Gas_1"
+        unit_type: "gas"
+        capacity: 150
+        marginal_cost: 48
+        min_output: 50
+        ramp_rate: 75
+        startup_cost: 4000
+        min_downtime: 2
+        min_uptime: 2
+        efficiency: 0.50
+        fuel_type: "natural_gas"
+        location: "city_center"
+        availability: 0.96
+        is_online: false
+        hours_online: 0
+        hours_offline: 0
+        current_output: 0.0
+        
+      - unit_id: "CP_Solar_1"
+        unit_type: "solar"
+        capacity: 150
+        marginal_cost: 0
+        min_output: 0
+        ramp_rate: 150
+        startup_cost: 0
+        min_downtime: 0
+        min_uptime: 0
+        efficiency: 1.0
+        fuel_type: "solar"
+        location: "city_outskirts"
+        availability: 0.22  # Overridden by profile
+        is_online: false
+        hours_online: 0
+        hours_offline: 0
+        current_output: 0.0
+        
+      - unit_id: "CP_Hydro_1"
+        unit_type: "hydro"
+        capacity: 80
+        marginal_cost: 5
+        min_output: 20
+        ramp_rate: 40
+        startup_cost: 500
+        min_downtime: 1
+        min_uptime: 1
+        efficiency: 0.90
+        fuel_type: "hydro"
+        location: "river_station"
+        availability: 0.8  # Overridden by seasonal profile
+        is_online: false
+        hours_online: 0
+        hours_offline: 0
+        current_output: 0.0
+
+# Consumers - now use profiles instead of fixed patterns
+consumers:
+  - agent_id: "city_load"
+    load_profile_name: "load_profile"  # References the profile
+    price_elasticity: -0.1
+    
+  - agent_id: "industrial_load"
+    load_profile_name: "load_profile"
+    price_elasticity: -0.05
+
+# Storage units
+storage:
+  - params:
+      agent_id: "merchant_storage_1"
+      capacity: 200  # MWh
+      power_rating: 100  # MW
+      efficiency: 0.92
+      initial_soc: 0.5
+
+# Markets
+markets: ["day_ahead"]
+
+# Policies
+policies:
+  - type: "carbon_tax"
+    tax_rate: 50  # $/tCO2
+    
+  - type: "renewable_mandate"
+    target: 0.35  # 35% renewable target
+
+# Output settings
+output:
+  save_hourly: true
+  save_daily_summary: true
+  save_monthly_summary: true
+  create_plots: true
