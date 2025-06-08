@@ -1,0 +1,414 @@
+# Main configuration file for utility simulation
+# Part 1: Simulation settings, consumers, markets, and policies
+
+simulation:
+  time_periods: 168  # 1 week
+  time_resolution: hourly
+
+# Consumer configuration
+consumers:
+  - params:
+      agent_id: "city_load"
+      demand_profile: [
+        600, 580, 560, 550, 560, 600, 700, 850,  # Morning ramp
+        950, 980, 1000, 1020, 1000, 980, 960, 950,  # Midday peak
+        980, 1050, 1100, 1080, 950, 800, 700, 650  # Evening peak and ramp down
+      ]
+      price_elasticity: -0.1
+      
+  - params:
+      agent_id: "industrial_load"
+      demand_profile: [
+        400, 400, 400, 400, 400, 450, 500, 550,
+        600, 600, 600, 600, 600, 600, 600, 600,
+        600, 600, 550, 500, 450, 400, 400, 400
+      ]
+      price_elasticity: -0.05  # Less elastic
+
+# Independent storage units
+storage:
+  - params:
+      agent_id: "merchant_storage_1"
+      capacity: 200  # MWh
+      power_rating: 100  # MW
+      efficiency: 0.92
+      initial_soc: 0.5
+
+# Market configuration
+markets: ["day_ahead"]
+
+# Policy configuration
+policies:
+  - type: "carbon_tax"
+    tax_rate: 50  # $/tCO2
+    
+  - type: "renewable_mandate"
+    target: 0.35  # 35% renewable target
+    
+  - type: "capacity_payment"  # New policy type
+    payment_rate: 10  # $/MW/period
+    eligible_types: ["gas", "coal", "nuclear"]  # Only dispatchable units
+
+# Market monitoring and analysis
+analysis:
+  calculate_hhi: true  # Herfindahl-Hirschman Index
+  track_market_power: true
+  monitor_unit_commitment: true
+  
+# Bilateral contracts
+bilateral_contracts:
+  - contract_id: "BC_001"
+    seller: "MegaPower_Corp"
+    buyer: "industrial_load"
+    quantity: 100  # MW
+    strike_price: 45  # $/MWh
+    start_period: 0
+    end_period: 168
+    
+  - contract_id: "BC_002"
+    seller: "City_Power"
+    buyer: "city_load"
+    quantity: 50
+    strike_price: 50
+    start_period: 0
+    end_period: 168
+    
+  - contract_id: "BC_003"
+    seller: "GreenGen_Energy"
+    buyer: "industrial_load"
+    quantity: 150
+    strike_price: 42
+    start_period: 0
+    end_period: 168
+    
+  - contract_id: "BC_004"
+    seller: "RenewablePower_IPP"
+    buyer: "city_load"
+    quantity: 75
+    strike_price: 35  # Lower price for renewable PPA
+    start_period: 0
+    end_period: 168
+
+# Include utilities from separate file
+# utilities: !include utilities_config.yaml
+# Utilities configuration file
+# Part 2: Detailed utility and generator specifications
+
+utilities:
+  # Large incumbent utility with diverse portfolio
+  - id: "MegaPower_Corp"
+    strategy: "strategic"  # Uses strategic bidding
+    markup: 0.15  # 15% markup in strategic bidding
+    enable_contracts: true
+    generators:
+      # Base load coal units
+      - unit_id: "MP_Coal_1"
+        unit_type: "coal"
+        capacity: 600
+        marginal_cost: 28
+        min_output: 300
+        ramp_rate: 60
+        startup_cost: 15000
+        min_downtime: 6
+        min_uptime: 6
+        efficiency: 0.38
+        fuel_type: "coal"
+        location: "central"
+        availability: 0.95  # 5% forced outage rate
+        
+      - unit_id: "MP_Coal_2"
+        unit_type: "coal"
+        capacity: 500
+        marginal_cost: 30
+        min_output: 250
+        ramp_rate: 50
+        startup_cost: 12000
+        min_downtime: 6
+        min_uptime: 6
+        efficiency: 0.36
+        fuel_type: "coal"
+        location: "central"
+        availability: 0.95
+        
+      # Combined cycle gas
+      - unit_id: "MP_CCGT_1"
+        unit_type: "gas"
+        capacity: 400
+        marginal_cost: 42
+        min_output: 150
+        ramp_rate: 200
+        startup_cost: 8000
+        min_downtime: 2
+        min_uptime: 2
+        efficiency: 0.58
+        fuel_type: "natural_gas"
+        location: "north"
+        availability: 0.98  # More reliable than coal
+        
+      - unit_id: "MP_CCGT_2"
+        unit_type: "gas"
+        capacity: 400
+        marginal_cost: 43
+        min_output: 150
+        ramp_rate: 200
+        startup_cost: 8000
+        min_downtime: 2
+        min_uptime: 2
+        efficiency: 0.57
+        fuel_type: "natural_gas"
+        location: "south"
+        availability: 0.98
+        
+      # Peaking units
+      - unit_id: "MP_Peaker_1"
+        unit_type: "gas"
+        capacity: 200
+        marginal_cost: 75
+        min_output: 40
+        ramp_rate: 200
+        startup_cost: 3000
+        min_downtime: 1
+        min_uptime: 1
+        efficiency: 0.35
+        fuel_type: "natural_gas"
+        location: "central"
+        availability: 0.96
+        
+      # Renewable assets
+      - unit_id: "MP_Wind_1"
+        unit_type: "wind"
+        capacity: 300
+        marginal_cost: 0
+        min_output: 0
+        ramp_rate: 300
+        startup_cost: 0
+        min_downtime: 0
+        min_uptime: 0
+        efficiency: 1.0
+        fuel_type: "wind"
+        location: "west"
+        availability: 0.33  # Typical onshore wind capacity factor
+        
+  # Mid-size utility focused on cleaner generation
+  - id: "GreenGen_Energy"
+    strategy: "optimal"  # Uses optimization-based bidding
+    forecast_horizon: 24
+    risk_aversion: 0.3
+    enable_contracts: false
+    generators:
+      # Modern gas units
+      - unit_id: "GG_CCGT_1"
+        unit_type: "gas"
+        capacity: 350
+        marginal_cost: 40
+        min_output: 100
+        ramp_rate: 175
+        startup_cost: 7000
+        min_downtime: 2
+        min_uptime: 2
+        efficiency: 0.60
+        fuel_type: "natural_gas"
+        location: "north"
+        availability: 0.98
+        
+      - unit_id: "GG_CCGT_2"
+        unit_type: "gas"
+        capacity: 300
+        marginal_cost: 41
+        min_output: 90
+        ramp_rate: 150
+        startup_cost: 6000
+        min_downtime: 2
+        min_uptime: 2
+        efficiency: 0.59
+        fuel_type: "natural_gas"
+        location: "north"
+        availability: 0.98
+        
+      # Large renewable portfolio
+      - unit_id: "GG_Wind_1"
+        unit_type: "wind"
+        capacity: 400
+        marginal_cost: 0
+        min_output: 0
+        ramp_rate: 400
+        startup_cost: 0
+        min_downtime: 0
+        min_uptime: 0
+        efficiency: 1.0
+        fuel_type: "wind"
+        location: "north"
+        availability: 0.35  # Average capacity factor
+        
+      - unit_id: "GG_Wind_2"
+        unit_type: "wind"
+        capacity: 350
+        marginal_cost: 0
+        min_output: 0
+        ramp_rate: 350
+        startup_cost: 0
+        min_downtime: 0
+        min_uptime: 0
+        efficiency: 1.0
+        fuel_type: "wind"
+        location: "south"
+        availability: 0.32
+        
+      - unit_id: "GG_Solar_1"
+        unit_type: "solar"
+        capacity: 300
+        marginal_cost: 0
+        min_output: 0
+        ramp_rate: 300
+        startup_cost: 0
+        min_downtime: 0
+        min_uptime: 0
+        efficiency: 1.0
+        fuel_type: "solar"
+        location: "south"
+        availability: 0.25  # Will vary by hour
+        
+      # Battery storage (treated as special generator)
+      - unit_id: "GG_Battery_1"
+        unit_type: "battery"
+        capacity: 100
+        marginal_cost: 5  # Small cost to account for cycling
+        min_output: -100  # Can charge
+        ramp_rate: 100
+        startup_cost: 0
+        min_downtime: 0
+        min_uptime: 0
+        efficiency: 0.90
+        fuel_type: "storage"
+        location: "central"
+        availability: 1.0
+        
+  # Small municipal utility
+  - id: "City_Power"
+    strategy: "marginal_cost"  # Simple marginal cost bidding
+    enable_contracts: true
+    generators:
+      # Small gas units
+      - unit_id: "CP_Gas_1"
+        unit_type: "gas"
+        capacity: 150
+        marginal_cost: 48
+        min_output: 50
+        ramp_rate: 75
+        startup_cost: 4000
+        min_downtime: 2
+        min_uptime: 2
+        efficiency: 0.50
+        fuel_type: "natural_gas"
+        location: "city_center"
+        availability: 0.96
+        
+      - unit_id: "CP_Gas_2"
+        unit_type: "gas"
+        capacity: 100
+        marginal_cost: 52
+        min_output: 30
+        ramp_rate: 50
+        startup_cost: 3000
+        min_downtime: 1
+        min_uptime: 1
+        efficiency: 0.48
+        fuel_type: "natural_gas"
+        location: "city_center"
+        availability: 0.95
+        
+      # Local solar
+      - unit_id: "CP_Solar_1"
+        unit_type: "solar"
+        capacity: 150
+        marginal_cost: 0
+        min_output: 0
+        ramp_rate: 150
+        startup_cost: 0
+        min_downtime: 0
+        min_uptime: 0
+        efficiency: 1.0
+        fuel_type: "solar"
+        location: "city_outskirts"
+        availability: 0.22  # Lower capacity factor for distributed solar
+        
+      # Small hydro
+      - unit_id: "CP_Hydro_1"
+        unit_type: "hydro"
+        capacity: 80
+        marginal_cost: 5
+        min_output: 20
+        ramp_rate: 40
+        startup_cost: 500
+        min_downtime: 1
+        min_uptime: 1
+        efficiency: 0.90
+        fuel_type: "hydro"
+        location: "river_station"
+        availability: 0.8  # Water availability constraints
+        
+  # New renewable-focused IPP (Independent Power Producer)
+  - id: "RenewablePower_IPP"
+    strategy: "strategic"
+    markup: 0.05  # Lower markup as mostly zero marginal cost
+    enable_contracts: true
+    generators:
+      # Large wind farm
+      - unit_id: "IPP_Wind_Farm_1"
+        unit_type: "wind"
+        capacity: 500
+        marginal_cost: 0
+        min_output: 0
+        ramp_rate: 500
+        startup_cost: 0
+        min_downtime: 0
+        min_uptime: 0
+        efficiency: 1.0
+        fuel_type: "wind"
+        location: "offshore"
+        availability: 0.42  # Higher capacity factor offshore
+        
+      # Onshore wind
+      - unit_id: "IPP_Wind_Onshore_1"
+        unit_type: "wind"
+        capacity: 300
+        marginal_cost: 0
+        min_output: 0
+        ramp_rate: 300
+        startup_cost: 0
+        min_downtime: 0
+        min_uptime: 0
+        efficiency: 1.0
+        fuel_type: "wind"
+        location: "mountains"
+        availability: 0.35
+        
+      # Utility-scale solar
+      - unit_id: "IPP_Solar_Farm_1"
+        unit_type: "solar"
+        capacity: 400
+        marginal_cost: 0
+        min_output: 0
+        ramp_rate: 400
+        startup_cost: 0
+        min_downtime: 0
+        min_uptime: 0
+        efficiency: 1.0
+        fuel_type: "solar"
+        location: "desert"
+        availability: 0.28  # Higher capacity factor in desert
+        
+      # Co-located battery storage
+      - unit_id: "IPP_Battery_1"
+        unit_type: "battery"
+        capacity: 150
+        marginal_cost: 3
+        min_output: -150
+        ramp_rate: 150
+        startup_cost: 0
+        min_downtime: 0
+        min_uptime: 0
+        efficiency: 0.93
+        fuel_type: "storage"
+        location: "desert"
+        availability: 1.0
